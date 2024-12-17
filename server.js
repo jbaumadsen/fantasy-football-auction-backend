@@ -14,6 +14,8 @@ const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',')
   : [];
 
+console.log(allowedOrigins);
+
 // Define a CORS function to dynamically check allowed origins
 const corsOptions = {
   origin: function (origin, callback) {
@@ -26,6 +28,11 @@ const corsOptions = {
   },
   credentials: true,
 };
+
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
 
 app.use(cors(corsOptions));
 
