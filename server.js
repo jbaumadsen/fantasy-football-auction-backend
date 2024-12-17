@@ -10,10 +10,24 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
-  next(); // Pass the request to the next middleware or route handler
-});
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',')
+  : [];
+
+// Define a CORS function to dynamically check allowed origins
+const corsOptions = {
+  origin: function (origin, callback) {
+    // If no origin (e.g. server-to-server request), or origin is allowed
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 
 // configure cors
 app.use(cors({
