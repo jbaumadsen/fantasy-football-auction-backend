@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
-    "dev": "concurrently -n srv,ssl -c blue,magenta \"nodemon server.js\" \"local-ssl-proxy --source 5000 --target 4000\""
+    "dev": "nodemon server.js\""
   },
   "keywords": [],
   "author": "",

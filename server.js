@@ -124,7 +124,7 @@ app.get("/auth/yahoo/url", requireAuth(), (req, res) => {
   url.searchParams.set("client_id", YAHOO_CLIENT_ID);
   url.searchParams.set("redirect_uri", REDIRECT_URI);
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("scope", "fspt-r");  // read-only
+  url.searchParams.set("scope", "fspt-w");  // read-write
   url.searchParams.set("state", state);
 
   console.log("🔗 Redirecting to Yahoo OAuth URL:", url.toString());
@@ -195,7 +195,7 @@ app.get("/auth/yahoo/callback", async (req, res) => {
     console.log("✅ Tokens saved to database");
 
     console.log("🔄 Redirecting to frontend...");
-    res.redirect(`${REDIRECT_URI}/?connected=yahoo`);
+    res.redirect(`${FRONTEND_ORIGIN}/?connected=yahoo`);
   } catch (e) {
     console.error("❌ Token exchange failed:", e.response?.data || e.message);
     console.error("🔍 Full error:", e);
