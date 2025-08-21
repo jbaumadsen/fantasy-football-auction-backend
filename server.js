@@ -23,6 +23,7 @@ const {
   REDIRECT_URI,
   CLERK_SECRET_KEY,
   CLERK_PUBLISHABLE_KEY,
+  FRONTEND_ORIGIN,
 } = process.env;
 
 // Log environment variables (without secrets)
