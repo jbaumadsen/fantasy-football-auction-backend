@@ -1,9 +1,7 @@
-import { appAuthMiddleware } from "../middleware/authMiddleware";
-import { AuthenticatedRequest } from "../types/authenticatedRequest.types";
-import { Response } from "express";
+import { appAuthMiddleware } from "../middleware/authMiddleware.js";
 import express from "express";
 
-import { getYahooAuthUrl } from "../controllers/auth.controller";
+import { getYahooAuthUrl } from "../controllers/auth.controller.js";
 
 const router = express.Router();
 

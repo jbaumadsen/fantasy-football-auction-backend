@@ -1,4 +1,4 @@
-import { AppError } from '../types/error.types';
+import { AppError } from '../types/error.types.js';
 export const errorHandler = (err, req, res, next) => {
     if (err instanceof AppError) {
         console.error('ErrorHandler line 11: AppError', err);

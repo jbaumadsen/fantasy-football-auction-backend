@@ -1,7 +1,7 @@
 // src/middleware/gatherMoreAuth.ts
 import { clerkClient, requireAuth, getAuth } from "@clerk/express";
-import User from "../models/user.model";
-import { normalizeEmail } from "../utils/normalizeEmail.utils";
+import User from "../models/user.model.js";
+import { normalizeEmail } from "../utils/normalizeEmail.utils.js";
 export const appAuthMiddleware = (allowedRoles) => async (req, res, next) => {
     // Require the user to be authenticated
     requireAuth()(req, res, async () => {

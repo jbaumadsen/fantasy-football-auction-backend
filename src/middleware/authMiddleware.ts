@@ -9,10 +9,10 @@
 
 import { Response, NextFunction } from "express";
 import { clerkClient, requireAuth, getAuth } from "@clerk/express";
-import { AuthenticatedRequest } from "../types/authenticatedRequest.types";
-import User from "../models/user.model";
-import { IUser } from "../types/user.types";
-import { normalizeEmail } from "../utils/normalizeEmail.utils";
+import { AuthenticatedRequest } from "../types/authenticatedRequest.types.js";
+import User from "../models/user.model.js";
+import { IUser } from "../types/user.types.js";
+import { normalizeEmail } from "../utils/normalizeEmail.utils.js";
 
 export const appAuthMiddleware = (allowedRoles: string[]) => async (
   req: AuthenticatedRequest,

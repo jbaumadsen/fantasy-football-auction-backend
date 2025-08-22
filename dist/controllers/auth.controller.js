@@ -1,7 +1,7 @@
-import { REDIRECT_URI, YAHOO_CLIENT_ID, YAHOO_AUTH_URL } from "../config/yahoo.config";
+import { REDIRECT_URI, YAHOO_CLIENT_ID, YAHOO_AUTH_URL } from "../config/yahoo.config.js";
 import crypto from "crypto";
-import { YahooService } from "../services/yahoo.service";
-import { AppError } from "../types/error.types";
+import { YahooService } from "../services/yahoo.service.js";
+import { AppError } from "../types/error.types.js";
 const yahooService = new YahooService();
 export const getYahooAuthUrl = async (req, res) => {
     const userId = req.userId;

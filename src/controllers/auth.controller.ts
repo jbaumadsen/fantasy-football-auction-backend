@@ -1,9 +1,9 @@
-import { REDIRECT_URI, YAHOO_CLIENT_ID, YAHOO_AUTH_URL } from "../config/yahoo.config";
+import { REDIRECT_URI, YAHOO_CLIENT_ID, YAHOO_AUTH_URL } from "../config/yahoo.config.js";
 import { AuthenticatedRequest } from "../types/authenticatedRequest.types";
 import { Response } from "express";
 import crypto from "crypto";
-import { YahooService } from "../services/yahoo.service";
-import { AppError } from "../types/error.types";
+import { YahooService } from "../services/yahoo.service.js";
+import { AppError } from "../types/error.types.js";
 
 const yahooService = new YahooService();
 
