@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const RosterSlot = require('../models/RosterSlot');
+const BudgetSlot = require('../../../models/old/BudgetSlot');
 
 // Get all slots
 
 router.get('/', async (req, res) => {
     try {
-        const slots = await RosterSlot.find();
+        const slots = await BudgetSlot.find();
         res.json(slots);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -15,25 +15,23 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
     console.log(req.body);
-    const rosterSlot = new RosterSlot({
+    const budgetSlot = new BudgetSlot({
         position: req.body.position,
         budget: req.body.budget,
         filled: req.body.filled
     });
-
+    
     try {
-        const newRosterSlot = await rosterSlot.save();
-        res.status(201).json(newRosterSlot);
-        console.log(newRosterSlot);
+        const newBudgetSlot = await budgetSlot.save();
+        res.status(201).json(newBudgetSlot);
     } catch (err) {
         res.status(400).json({ message: err.message });
-        console.log(err);
     }
 });
 
 router.put('/:id', async (req, res) => {
     try {
-        const updatedSlot = await RosterSlot.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const updatedSlot = await BudgetSlot.findByIdAndUpdate(req.params.id, req.body, { new: true });
         res.json(updatedSlot);
     } catch (err) {
         console.log(err);
@@ -43,11 +41,8 @@ router.put('/:id', async (req, res) => {
 
 router.delete('/', async (req, res) => {
     try {
-        await RosterSlot.findByIdAndDelete(req.params.id);
-        res.json({ message: 'Roster slot deleted' });
-        // log all players
-        const players = await Player.find();
-        console.log(players);
+        await BudgetSlot.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Budget slot deleted' });
     } catch (err) {
         res.status(400).json({ message: err.message });
     }

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const Player = require('../models/Player');
-const Backup = require('../models/Backup');
+const Player = require('../../../models/old/Player');
+const Backup = require('../../../models/old/Backup');
 const mongoose = require('mongoose');
 
 // Get all players

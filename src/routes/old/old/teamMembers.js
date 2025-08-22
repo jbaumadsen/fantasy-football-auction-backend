@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const TeamMember = require('../models/TeamMember');
+const TeamMember = require('../../../models/old/TeamMember');
 
 // Get all slots
 
