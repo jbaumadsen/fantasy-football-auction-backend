@@ -15,12 +15,17 @@ import {
 } from "../config/yahoo.config.js";
 import { AppError } from "../types/error.types.js";
 
-export class YahooService {
+export class YahooAuthService {
   /**
    * Generate Basic Auth header for Yahoo OAuth
    */
   private generateBasicAuth(): string {
-    return "Basic " + Buffer.from(`${YAHOO_CLIENT_ID}:${YAHOO_CLIENT_SECRET}`).toString("base64");
+    return (
+      "Basic " +
+      Buffer.from(`${YAHOO_CLIENT_ID}:${YAHOO_CLIENT_SECRET}`).toString(
+        "base64"
+      )
+    );
   }
 
   /**
@@ -69,6 +74,31 @@ export class YahooService {
     return response.data;
   }
 
+  async handleOAuthCallback(
+    code: string,
+    state: string
+  ): Promise<{ userId: string }> {
+    const parsed = this.verifyState(state);
+    if (!parsed?.userId) throw new AppError("Bad state", 400);
+
+    // TTL check: reject stale states (replay protection)
+    const MAX_STATE_AGE_MS = 10 * 60 * 1000; // 10 minutes
+    const age = Date.now() - parsed.ts;
+    if (typeof parsed.ts !== "number" || age < 0 || age > MAX_STATE_AGE_MS) {
+      throw new AppError("State expired", 400);
+    }
+
+    const token = await this.exchangeCodeForTokens(code);
+    await this.saveUserTokens(
+      parsed.userId,
+      token.access_token,
+      token.refresh_token,
+      token.expires_in
+    );
+
+    return { userId: parsed.userId };
+  }
+
   /**
    * Refresh access token if needed
    */
@@ -101,11 +131,15 @@ export class YahooService {
 
     // Check if token needs refresh (with 1 minute buffer)
     if (Date.now() > (userToken.expires_at as Date).getTime() - 60_000) {
-      const refreshResponse = await this.refreshAccessToken(userToken.refresh_token as string);
-      
+      const refreshResponse = await this.refreshAccessToken(
+        userToken.refresh_token as string
+      );
+
       // Update tokens in database
       userToken.access_token = refreshResponse.access_token as string;
-      userToken.expires_at = new Date(Date.now() + (refreshResponse.expires_in as number) * 1000);
+      userToken.expires_at = new Date(
+        Date.now() + (refreshResponse.expires_in as number) * 1000
+      );
       if (refreshResponse.refresh_token) {
         userToken.refresh_token = refreshResponse.refresh_token as string;
       }
@@ -118,9 +152,14 @@ export class YahooService {
   /**
    * Save user tokens to database
    */
-  async saveUserTokens(userId: string, accessToken: string, refreshToken: string, expiresIn: number): Promise<void> {
+  async saveUserTokens(
+    userId: string,
+    accessToken: string,
+    refreshToken: string,
+    expiresIn: number
+  ): Promise<void> {
     const expiresAt = new Date(Date.now() + expiresIn * 1000);
-    
+
     await UserToken.findOneAndUpdate(
       { localUserId: userId },
       {
@@ -135,27 +174,37 @@ export class YahooService {
   /**
    * Make authenticated request to Yahoo API
    */
-  async makeYahooApiRequest(userId: string, endpoint: string, params: Record<string, any> = {}): Promise<any> {
+  async makeYahooApiRequest(
+    userId: string,
+    endpoint: string,
+    params: Record<string, any> = {}
+  ): Promise<any> {
     const accessToken = await this.getOrRefreshAccessToken(userId);
-    
+
     const url = `${YAHOO_API_URL}${endpoint}?format=${YAHOO_API_FORMAT}`;
     const response = await axios.get(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
       params,
     });
-    
+
     return response.data;
   }
 
   /**
    * Get players from Yahoo Fantasy API
    */
-  async getPlayers(userId: string, leagueKey: string, search?: string, start: number = 0, count: number = 25): Promise<any> {
+  async getPlayers(
+    userId: string,
+    leagueKey: string,
+    search?: string,
+    start: number = 0,
+    count: number = 25
+  ): Promise<any> {
     let endpoint = `/league/${leagueKey}/players;start=${start};count=${count}`;
     if (search) {
       endpoint += `;search=${encodeURIComponent(search)}`;
     }
-    
+
     return this.makeYahooApiRequest(userId, endpoint);
   }
 
@@ -178,7 +227,10 @@ export class YahooService {
    * Get league draft results
    */
   async getLeagueDraftResults(userId: string, leagueKey: string): Promise<any> {
-    return this.makeYahooApiRequest(userId, `/league/${leagueKey}/draftresults`);
+    return this.makeYahooApiRequest(
+      userId,
+      `/league/${leagueKey}/draftresults`
+    );
   }
 
   /**
@@ -197,5 +249,5 @@ export class YahooService {
 }
 
 // Export singleton instance
-export const yahooService = new YahooService();
+export const yahooService = new YahooAuthService();
 export default yahooService;
