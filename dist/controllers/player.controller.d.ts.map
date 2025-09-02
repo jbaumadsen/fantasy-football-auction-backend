@@ -1,0 +1,1 @@
+{"version":3,"file":"player.controller.d.ts","sourceRoot":"","sources":["../../src/controllers/player.controller.ts"],"names":[],"mappings":"AAAA,OAAO,EAAW,QAAQ,EAAE,YAAY,EAAE,MAAM,SAAS,CAAC;AAC1D,OAAO,EAAE,oBAAoB,EAAE,MAAM,wCAAwC,CAAC;AAI9E,eAAO,MAAM,gBAAgB;oBACL,oBAAoB,OAAO,QAAQ,QAAQ,YAAY;uBA2BpD,oBAAoB,OAAO,QAAQ,QAAQ,YAAY;4BAyBlD,oBAAoB,OAAO,QAAQ,QAAQ,YAAY;CA+BtF,CAAC"}

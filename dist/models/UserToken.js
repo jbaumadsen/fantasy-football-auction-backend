@@ -5,8 +5,8 @@ const UserTokenSchema = new mongoose.Schema({
     // Provider lets you support multiple connections later if you want (e.g., "yahoo", "espn")
     provider: { type: String, required: true, default: "yahoo" },
     // OAuth tokens
-    access_token: { type: String, required: true },
-    refresh_token: { type: String, required: true },
+    access_token: { type: String },
+    refresh_token: { type: String },
     // Absolute time when the access token expires
     expires_at: { type: Date, required: true },
     // Optional metadata returned by Yahoo (store if you want)

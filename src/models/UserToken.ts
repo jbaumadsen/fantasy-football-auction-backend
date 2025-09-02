@@ -9,8 +9,8 @@ const UserTokenSchema = new mongoose.Schema(
     provider: { type: String, required: true, default: "yahoo" },
 
     // OAuth tokens
-    access_token: { type: String, required: true },
-    refresh_token: { type: String, required: true },
+    access_token: { type: String },
+    refresh_token: { type: String },
 
     // Absolute time when the access token expires
     expires_at: { type: Date, required: true },

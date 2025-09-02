@@ -1,33 +1,293 @@
 import { yahooApiService } from "./yahooApi.service.js";
 import { AppError } from "../types/error.types.js";
 import { logger } from "../utils/logger.utils.js";
+import PlayerAnalysis from "../models/playerAnalysis.model.js";
+// import { PlayerAnalysisInput, YahooLeaguePlayersResponse } from "../types/draftAnalysis.types.js";
 
 export class DraftService {
-  
+
   /**
-   * Get players with draft analysis data (includes average auction $ and ADP)
-   * This is the data that IS available from Yahoo's API
+   * Get and update player draft analysis data for all available players
+   * This method will paginate through all available players and store their analyses
    */
-  async getPlayersWithDraftAnalysis(
+  async getAndUpdatePlayerDraftAnalysis(
     userId: string,
-    leagueKey: string,
-    limit: number = 100
-  ): Promise<any[]> {
+    leagueKey: string
+  ): Promise<{ totalFetched: number; totalStored: number; errors: string[] }> {
+    console.log('line 43 in draft.service.ts getAndUpdatePlayerDraftAnalysis')
+
+    const batchSize = 25;
     try {
-      logger.log(`📊 Fetching ${limit} players with draft analysis for league: ${leagueKey}`);
+      console.log(`🔄 Starting bulk fetch and store of player analyses for league: ${leagueKey}`);
       
-      const yahooPlayers = await yahooApiService.getPlayersWithProjections(userId, leagueKey, {
-        count: limit
-      });
+      let totalFetched = 0;
+      let totalStored = 0;
+      let start = 0;
+      let hasMore = true;
+      const errors: string[] = [];
+
+      // Rate limiting configuration
+      const RATE_LIMIT_DELAY_MS = 1000; // 1 second between API calls
+      const BATCH_PROCESSING_DELAY_MS = 500; // 500ms between batches
+      const MAX_RETRIES = 3;
+      const RETRY_DELAY_MS = 2000; // 2 seconds before retry
+
+      while (hasMore) {
+        try {
+          console.log(`📥 Fetching batch starting at ${start} with size ${batchSize}`);
+                     console.log('line 62 in draft.service.ts getAndUpdatePlayerDraftAnalysis')
+          
+          // Rate limiting: wait before making API call
+          if (start > 0) {
+            console.log(`⏳ Rate limiting: waiting ${RATE_LIMIT_DELAY_MS}ms before next API call`);
+            await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
+          }
+
+          let yahooPlayers;
+          let retryCount = 0;
+          
+          // Retry logic with exponential backoff
+          while (retryCount < MAX_RETRIES) {
+            try {
+              yahooPlayers = await yahooApiService.getPlayersWithDraftAnalysis(userId, leagueKey, {
+                start,
+                count: batchSize
+              });
+              break; // Success, exit retry loop
+            } catch (apiError) {
+              retryCount++;
+              if (retryCount >= MAX_RETRIES) {
+                throw apiError; // Give up after max retries
+              }
+              
+              const backoffDelay = RETRY_DELAY_MS * Math.pow(2, retryCount - 1);
+              console.log(`⚠️ API call failed, retrying in ${backoffDelay}ms (attempt ${retryCount}/${MAX_RETRIES})`);
+              await new Promise(resolve => setTimeout(resolve, backoffDelay));
+            }
+          }
+
+          // const stringifiedYahooPlayers = JSON.stringify(yahooPlayers);
+          // logger.log('line 94 in draft.service.ts fetchAndStoreAllPlayerAnalyses stringifiedYahooPlayers', yahooPlayers);
+
+          const playersNode = yahooPlayers?.fantasy_content?.league?.[1]?.players;
+          console.log(`🔍 Yahoo API response structure:`, {
+            hasFantasyContent: !!yahooPlayers?.fantasy_content,
+            hasLeague: !!yahooPlayers?.fantasy_content?.league,
+            leagueLength: yahooPlayers?.fantasy_content?.league?.length,
+            hasPlayers: !!playersNode,
+            playersType: typeof playersNode,
+            startPosition: start
+          });
+          
+          if (!playersNode || typeof playersNode !== "object") {
+            console.log(`📭 No more players found at start position ${start}`);
+            hasMore = false;
+            break;
+          }
+
+          const playerKeys = Object.keys(playersNode).filter(
+            (key) => key !== "count" && !isNaN(Number(key))
+          );
+          
+          console.log(`🔑 Extracted player keys:`, {
+            totalKeys: Object.keys(playersNode).length,
+            countKey: playersNode.count,
+            numericKeys: playerKeys,
+            playerKeysLength: playerKeys.length
+          });
+
+          if (playerKeys.length === 0) {
+                         console.log('line 105 in draft.service.ts getAndUpdatePlayerDraftAnalysis no players in batch')
+            console.log(`📭 No players in batch at start position ${start}`);
+            hasMore = false;
+            break;
+          }
+
+          console.log(`📊 Processing ${playerKeys.length} players in current batch`);
+
+          // Process each player in the batch
+          for (const key of playerKeys) {
+            try {
+              const playerEntry = playersNode[key];
+              if (playerEntry?.player && Array.isArray(playerEntry.player)) {
+                const playerData = playerEntry.player;
+                logger.log('line 139 in draft.service.ts fetchAndStoreAllPlayerAnalyses playerData', playerData);
+                const draftAnalysis = playerData[1];
+                const playerKey = playerData[0][0].player_key;
+                const playerName = playerData[0][2].name.full;
+                const averagePick = draftAnalysis.draft_analysis[0].average_pick || 0;
+                const averageRound = draftAnalysis.draft_analysis[1].average_round || 0;
+                const averageCost = draftAnalysis.draft_analysis[2].average_cost || 0;
+                const percentDrafted = draftAnalysis.draft_analysis[3].percent_drafted || 0;
+                const preseasonAveragePick = draftAnalysis.draft_analysis[4].preseason_average_pick || 0;
+                const preseasonAverageRound = draftAnalysis.draft_analysis[5].preseason_average_round || 0;
+                const preseasonAverageCost = draftAnalysis.draft_analysis[6].preseason_average_cost || 0;
+                const preseasonPercentDrafted = draftAnalysis.draft_analysis[7].preseason_percent_drafted || 0;
+
+                // logger.log('line 151 in draft.service.ts fetchAndStoreAllPlayerAnalyses draftAnalysis', draftAnalysis);
+
+                // stringify draftAnalysis and add it to the log file not the console
+                // const stringifiedDraftAnalysis = JSON.stringify(draftAnalysis); 
+                // logger.log('line 143 in draft.service.ts fetchAndStoreAllPlayerAnalyses stringifiedDraftAnalysis', stringifiedDraftAnalysis);
+
+                if (Array.isArray(playerData) && draftAnalysis?.draft_analysis) {
+
+                  const playerAnalysis = {
+                    playerKey,
+                    leagueKey,
+                    playerName,
+                    averagePick,
+                    averageRound,
+                    averageCost,
+                    percentDrafted,
+                    preseasonAveragePick,
+                    preseasonAverageRound,
+                    preseasonAverageCost,
+                    preseasonPercentDrafted
+                  };
+
+                  // logger.log('line 172 in draft.service.ts fetchAndStoreAllPlayerAnalyses playerAnalysis', playerAnalysis);
+
+                                     if (playerAnalysis) {
+                     // Use upsert to avoid duplicates
+                     await PlayerAnalysis.findOneAndUpdate(
+                       { 
+                         fantasyLeagueId: leagueKey,
+                         yahooPlayerKey: playerKey
+                       },
+                       {
+                         fantasyLeagueId: leagueKey,
+                         yahooPlayerKey: playerKey,
+                         playerName: playerName,
+                         averagePick: averagePick,
+                         averageRound: averageRound,
+                         averageCost: averageCost,
+                         percentDrafted: percentDrafted,
+                         preseasonAveragePick: preseasonAveragePick,
+                         preseasonAverageRound: preseasonAverageRound,
+                         preseasonAverageCost: preseasonAverageCost,
+                         preseasonPercentDrafted: preseasonPercentDrafted
+                       },
+                       { upsert: true, new: true }
+                     );
+                     totalStored++;
+                   }
+                  totalFetched++;
+                }
+              }
+            } catch (playerError) {
+              const errorMsg = `Error processing player at key ${key}: ${playerError}`;
+              console.error(errorMsg);
+              errors.push(errorMsg);
+            }
+          }
+
+          // Move to next batch
+          start += batchSize;
+          
+          // Check if we've reached the end
+          console.log(`📊 Batch completed: ${playerKeys.length} players, batchSize: ${batchSize}, start now: ${start}`);
+          
+          if (playerKeys.length < batchSize) {
+            console.log(`🏁 Reached end of available players (${playerKeys.length} < ${batchSize})`);
+            hasMore = false;
+          } else {
+            console.log(`🔄 Continuing to next batch at position ${start}`);
+          }
+
+          // Rate limiting: wait between batches to avoid overwhelming the API
+          if (hasMore) {
+            console.log(`⏳ Rate limiting: waiting ${BATCH_PROCESSING_DELAY_MS}ms before next batch`);
+            await new Promise(resolve => setTimeout(resolve, BATCH_PROCESSING_DELAY_MS));
+          }
+
+        } catch (batchError) {
+          const errorMsg = `Error processing batch starting at ${start}: ${batchError}`;
+          console.error(errorMsg);
+          errors.push(errorMsg);
+          
+          // If it's an API rate limit error, wait longer before continuing
+          const errorMessage = batchError instanceof Error ? batchError.message : String(batchError);
+          const errorStatus = (batchError as any)?.status;
+          
+          if (errorMessage.includes('rate limit') || errorStatus === 429) {
+            const rateLimitDelay = 5000; // 5 seconds for rate limit
+            console.log(`🚫 Rate limit detected, waiting ${rateLimitDelay}ms before continuing`);
+            await new Promise(resolve => setTimeout(resolve, rateLimitDelay));
+          } else {
+            hasMore = false; // Stop on other errors
+          }
+        }
+      }
+
+      console.log(`✅ Completed bulk fetch and store. Fetched: ${totalFetched}, Stored: ${totalStored}, Errors: ${errors.length}`);
       
-      const transformedPlayers = this.transformYahooPlayersWithDraftAnalysis(yahooPlayers, limit);
-      
-      return transformedPlayers;
+      return {
+        totalFetched,
+        totalStored,
+        errors
+      };
+
     } catch (error) {
-      logger.error("❌ Error fetching players with draft analysis:", error);
-      throw error;
+      console.error("❌ Error in bulk fetch and store of player analyses:", error);
+      throw new AppError("Failed to fetch and store all player analyses", 500);
     }
   }
+
+  /**
+   * Get stored player analyses for a specific league
+   */
+  async getStoredPlayerAnalyses(
+    leagueKey: string,
+    filters?: {
+      position?: string;
+      team?: string;
+      limit?: number;
+      skip?: number;
+    }
+  ): Promise<any[]> {
+    try {
+      logger.log(`📊 Retrieving stored player analyses for league: ${leagueKey}`);
+      
+      const query: any = { fantasyLeagueId: leagueKey };
+      
+      if (filters?.position) {
+        query.displayPosition = filters.position;
+      }
+      
+      if (filters?.team) {
+        query.editorialTeamAbbr = filters.team;
+      }
+
+      const limit = filters?.limit || 100;
+      const skip = filters?.skip || 0;
+
+      const analyses = await PlayerAnalysis.find(query)
+        .sort({ lastUpdated: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      logger.log(`✅ Retrieved ${analyses.length} player analyses for league: ${leagueKey}`);
+      
+      return analyses;
+    } catch (error) {
+      logger.error("❌ Error retrieving stored player analyses:", error);
+      throw new AppError("Failed to retrieve stored player analyses", 500);
+    }
+  }
+
+  /**
+   * Get count of stored player analyses for a league
+   */
+  // async getPlayerAnalysesCount(leagueKey: string): Promise<number> {
+  //   try {
+  //     const count = await PlayerAnalysis.countDocuments({ fantasyLeagueId: leagueKey });
+  //     return count;
+  //   } catch (error) {
+  //     logger.error("❌ Error counting player analyses:", error);
+  //     throw new AppError("Failed to count player analyses", 500);
+  //   }
+  // }
 
   /**
    * Get draft results for the league (includes actual auction prices)
@@ -42,7 +302,7 @@ export class DraftService {
       
       const draftResults = await yahooApiService.getLeagueDraftResults(userId, leagueKey);
       
-      return this.transformDraftResults(draftResults);
+      return draftResults;
     } catch (error) {
       logger.error("❌ Error fetching draft results:", error);
       throw error;
@@ -52,338 +312,40 @@ export class DraftService {
   /**
    * Get league settings including auction budget and draft settings
    */
-  async getLeagueSettings(
-    userId: string,
-    leagueKey: string
-  ): Promise<any> {
-    try {
-      logger.log(`⚙️ Fetching league settings for league: ${leagueKey}`);
+  // async getLeagueSettings(
+  //   userId: string,
+  //   leagueKey: string
+  // ): Promise<any> {
+  //   try {
+  //     logger.log(`⚙️ Fetching league settings for league: ${leagueKey}`);
       
-      const settings = await yahooApiService.getLeagueSettings(userId, leagueKey);
+  //     const settings = await yahooApiService.getLeagueSettings(userId, leagueKey);
       
-      return this.transformLeagueSettings(settings);
-    } catch (error) {
-      logger.error("❌ Error fetching league settings:", error);
-      throw error;
-    }
-  }
+  //     return this.transformLeagueSettings(settings);
+  //   } catch (error) {
+  //     logger.error("❌ Error fetching league settings:", error);
+  //     throw error;
+  //   }
+  // }
 
   /**
    * Get league teams and their current auction budgets
    */
-  async getLeagueTeams(
-    userId: string,
-    leagueKey: string
-  ): Promise<any[]> {
-    try {
-      logger.log(`👥 Fetching league teams for league: ${leagueKey}`);
+  // async getLeagueTeams(
+  //   userId: string,
+  //   leagueKey: string
+  // ): Promise<any[]> {
+  //   try {
+  //     logger.log(`👥 Fetching league teams for league: ${leagueKey}`);
       
-      const teams = await yahooApiService.getLeagueTeams(userId, leagueKey);
+  //     const teams = await yahooApiService.getLeagueTeams(userId, leagueKey);
       
-      return this.transformLeagueTeams(teams);
-    } catch (error) {
-      logger.error("❌ Error fetching league teams:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Transform Yahoo player data with draft analysis
-   */
-  private transformYahooPlayersWithDraftAnalysis(yahooData: any, limit: number): any[] {
-    try {
-      // Yahoo returns players in a numbered key structure like "15": { "player": [...] }
-      const playersNode = yahooData?.fantasy_content?.league?.[1]?.players;
-
-      if (!playersNode || typeof playersNode !== "object") {
-        return [];
-      }
-
-      // Extract all numbered keys (excluding "count")
-      const playerKeys = Object.keys(playersNode).filter(
-        (key) => key !== "count" && !isNaN(Number(key))
-      );
-
-      const allPlayers = [];
-
-      for (const key of playerKeys) {
-        const playerEntry = playersNode[key];
-        if (playerEntry?.player && Array.isArray(playerEntry.player)) {
-          // Each player entry contains an array of player data
-          // But Yahoo wraps it in ANOTHER array, so we need player[0]
-          const playerData = playerEntry.player[0];
-          if (Array.isArray(playerData)) {
-            allPlayers.push(playerData);
-          }
-        }
-      }
-
-      return this.extractPlayerDataWithDraftAnalysis(allPlayers, limit);
-    } catch (error) {
-      logger.error("❌ Error transforming Yahoo data with draft analysis:", error);
-      throw new AppError("Failed to transform Yahoo player data with draft analysis", 500);
-    }
-  }
-
-  /**
-   * Transform draft results data
-   */
-  private transformDraftResults(yahooData: any): any[] {
-    try {
-      // Yahoo returns draft results in a numbered key structure like "15": { "player": [...] }
-      const draftResultsNode = yahooData?.fantasy_content?.league?.[1]?.draft_results;
-
-      if (!draftResultsNode || typeof draftResultsNode !== "object") {
-        return [];
-      }
-
-      // Extract all numbered keys (excluding "count")
-      const playerKeys = Object.keys(draftResultsNode).filter(
-        (key) => key !== "count" && !isNaN(Number(key))
-      );
-
-      const allDraftResults = [];
-
-      for (const key of playerKeys) {
-        const playerEntry = draftResultsNode[key];
-        if (playerEntry?.player && Array.isArray(playerEntry.player)) {
-          // Each player entry contains an array of player data
-          // But Yahoo wraps it in ANOTHER array, so we need player[0]
-          const playerData = playerEntry.player[0];
-          if (Array.isArray(playerData)) {
-            allDraftResults.push(playerData);
-          }
-        }
-      }
-
-      return this.extractDraftResultData(allDraftResults);
-    } catch (error) {
-      logger.error("❌ Error transforming draft results:", error);
-      throw new AppError("Failed to transform draft results", 500);
-    }
-  }
-
-  /**
-   * Extract player data with draft analysis fields
-   */
-  private extractPlayerDataWithDraftAnalysis(playersArray: any[], limit: number): any[] {
-    const transformedPlayers = [];
-
-    for (let i = 0; i < Math.min(playersArray.length, limit); i++) {
-      const playerData = playersArray[i];
-
-      // Each player is an array of key-value pairs from Yahoo
-      // We need to extract the relevant fields from this array
-      let playerKey = "";
-      let playerId = "";
-      let playerName = "";
-      let firstName = "";
-      let lastName = "";
-      let playerPosition = "";
-      let playerTeam = "";
-      let playerTeamFull = "";
-      let playerTeamKey = "";
-      let playerStatus = "";
-      let playerByeWeek = "";
-      let uniformNumber = "";
-      let headshotUrl = "";
-      let imageUrl = "";
-      let hasPlayerNotes = false;
-      let playerNotesTimestamp = 0;
-      let editorialKey = "";
-      let averageAuctionValue = 0;
-      let averageDraftPosition = 0;
-
-      // Extract data from the array structure
-      for (const item of playerData) {
-        if (item.player_key) playerKey = item.player_key;
-        if (item.player_id) playerId = item.player_id;
-        if (item.name?.full) playerName = item.name.full;
-        if (item.name?.first) firstName = item.name.first;
-        if (item.name?.last) lastName = item.name.last;
-        if (item.display_position) playerPosition = item.display_position;
-        if (item.editorial_team_abbr) playerTeam = item.editorial_team_abbr;
-        if (item.editorial_team_full_name) playerTeamFull = item.editorial_team_full_name;
-        if (item.editorial_team_key) playerTeamKey = item.editorial_team_key;
-        if (item.status) playerStatus = item.status;
-        if (item.bye_weeks?.week) playerByeWeek = item.bye_weeks.week;
-        if (item.uniform_number) uniformNumber = item.uniform_number;
-        if (item.headshot?.url) headshotUrl = item.headshot.url;
-        if (item.image_url) imageUrl = item.image_url;
-        if (item.has_player_notes) hasPlayerNotes = item.has_player_notes === 1;
-        if (item.player_notes_last_timestamp) playerNotesTimestamp = item.player_notes_last_timestamp;
-        if (item.editorial_player_key) editorialKey = item.editorial_player_key;
-        if (item.average_auction_value) averageAuctionValue = item.average_auction_value;
-        if (item.average_draft_position) averageDraftPosition = item.average_draft_position;
-      }
-
-      if (playerKey && playerName) {
-        transformedPlayers.push({
-          id: playerKey,
-          yahooId: playerId,
-          editorialKey: editorialKey,
-          name: playerName,
-          firstName: firstName || playerName.split(' ')[0],
-          lastName: lastName || playerName.split(' ').slice(1).join(' '),
-          position: playerPosition || "Unknown",
-          team: playerTeam || "Unknown",
-          teamFullName: playerTeamFull || "",
-          teamKey: playerTeamKey || "",
-          status: playerStatus || "Active",
-          byeWeek: playerByeWeek || "Unknown",
-          uniformNumber: uniformNumber || "",
-          headshotUrl: headshotUrl || "",
-          imageUrl: imageUrl || "",
-          hasPlayerNotes: hasPlayerNotes,
-          playerNotesTimestamp: playerNotesTimestamp,
-          averageAuctionValue: averageAuctionValue,
-          averageDraftPosition: averageDraftPosition,
-          lastUpdated: new Date().toISOString(),
-          // Store the raw Yahoo data for debugging
-          rawYahooData: playerData,
-        });
-      }
-    }
-
-    return transformedPlayers;
-  }
-
-  /**
-   * Extract draft result data
-   */
-  private extractDraftResultData(draftResultsArray: any[]): any[] {
-    const transformedResults = [];
-
-    for (const playerData of draftResultsArray) {
-      let playerKey = "";
-      let playerId = "";
-      let playerName = "";
-      let playerPosition = "";
-      let playerTeam = "";
-      let playerTeamFull = "";
-      let playerTeamKey = "";
-      let auctionPrice = 0;
-      let draftRound = 0;
-      let draftPick = 0;
-      let draftTimestamp = 0;
-
-      for (const item of playerData) {
-        if (item.player_key) playerKey = item.player_key;
-        if (item.player_id) playerId = item.player_id;
-        if (item.name?.full) playerName = item.name.full;
-        if (item.display_position) playerPosition = item.display_position;
-        if (item.editorial_team_abbr) playerTeam = item.editorial_team_abbr;
-        if (item.editorial_team_full_name) playerTeamFull = item.editorial_team_full_name;
-        if (item.editorial_team_key) playerTeamKey = item.editorial_team_key;
-        if (item.auction_price) auctionPrice = item.auction_price;
-        if (item.draft_round) draftRound = item.draft_round;
-        if (item.draft_pick) draftPick = item.draft_pick;
-        if (item.draft_timestamp) draftTimestamp = item.draft_timestamp;
-      }
-
-      if (playerKey && playerName) {
-        transformedResults.push({
-          id: playerKey,
-          yahooId: playerId,
-          name: playerName,
-          position: playerPosition || "Unknown",
-          team: playerTeam || "Unknown",
-          teamFullName: playerTeamFull || "",
-          teamKey: playerTeamKey || "",
-          auctionPrice: auctionPrice,
-          draftRound: draftRound,
-          draftPick: draftPick,
-          draftTimestamp: draftTimestamp,
-          lastUpdated: new Date().toISOString(),
-          rawYahooData: playerData,
-        });
-      }
-    }
-
-    return transformedResults;
-  }
-
-  /**
-   * Transform league settings data
-   */
-  private transformLeagueSettings(settings: any): any {
-    try {
-      const leagueNode = settings?.fantasy_content?.league?.[1];
-      
-      if (!leagueNode) {
-        return {};
-      }
-
-      return {
-        leagueKey: leagueNode.league_key,
-        leagueName: leagueNode.name,
-        leagueType: leagueNode.league_type,
-        season: leagueNode.season,
-        numTeams: leagueNode.num_teams,
-        draftType: leagueNode.draft_type,
-        auctionBudget: leagueNode.auction_budget || 0,
-        scoringType: leagueNode.scoring_type,
-        rosterPositions: leagueNode.roster_positions,
-        rawSettings: leagueNode
-      };
-    } catch (error) {
-      logger.error("❌ Error transforming league settings:", error);
-      return {};
-    }
-  }
-
-  /**
-   * Transform league teams data
-   */
-  private transformLeagueTeams(teams: any): any[] {
-    try {
-      const teamsNode = teams?.fantasy_content?.league?.[1]?.teams;
-      
-      if (!teamsNode || typeof teamsNode !== "object") {
-        return [];
-      }
-
-      const teamKeys = Object.keys(teamsNode).filter(
-        (key) => key !== "count" && !isNaN(Number(key))
-      );
-
-      const transformedTeams = [];
-
-      for (const key of teamKeys) {
-        const teamEntry = teamsNode[key];
-        if (teamEntry?.team && Array.isArray(teamEntry.team)) {
-          const teamData = teamEntry.team[0];
-          
-          let teamKey = "";
-          let teamName = "";
-          let teamId = "";
-          let managerName = "";
-
-          for (const item of teamData) {
-            if (item.team_key) teamKey = item.team_key;
-            if (item.name) teamName = item.name;
-            if (item.team_id) teamId = item.team_id;
-            if (item.managers?.[0]?.manager?.name) managerName = item.managers[0].manager.name;
-          }
-
-          if (teamKey && teamName) {
-            transformedTeams.push({
-              teamKey,
-              teamName,
-              teamId,
-              managerName,
-              rawTeamData: teamData
-            });
-          }
-        }
-      }
-
-      return transformedTeams;
-    } catch (error) {
-      logger.error("❌ Error transforming league teams:", error);
-      return [];
-    }
-  }
+  //     return this.transformLeagueTeams(teams);
+  //   } catch (error) {
+  //     logger.error("❌ Error fetching league teams:", error);
+  //     throw error;
+  //   }
+  // }
 }
 
 export const draftService = new DraftService();

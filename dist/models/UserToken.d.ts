@@ -1,18 +1,19 @@
-export default UserToken;
+import mongoose from "mongoose";
 declare const UserToken: mongoose.Model<{
     createdAt: NativeDate;
     updatedAt: NativeDate;
 } & {
     scope: unknown[];
+    refresh_token?: unknown;
     localUserId?: unknown;
     provider?: unknown;
     access_token?: unknown;
-    refresh_token?: unknown;
     expires_at?: {
-        toJSON?: {} | null | undefined;
-        [Symbol.toPrimitive]?: {} | null | undefined;
         toString?: {} | null | undefined;
         toLocaleString?: {} | null | undefined;
+        [Symbol.toPrimitive]?: {} | null | undefined;
+        toJSON?: {} | null | undefined;
+        valueOf?: {} | null | undefined;
         toDateString?: {} | null | undefined;
         toTimeString?: {} | null | undefined;
         toLocaleDateString?: {} | null | undefined;
@@ -53,7 +54,6 @@ declare const UserToken: mongoose.Model<{
         toUTCString?: {} | null | undefined;
         toISOString?: {} | null | undefined;
         getVarDate?: {} | null | undefined;
-        valueOf?: {} | null | undefined;
     } | null | undefined;
     provider_user_id?: unknown;
 }, {}, {}, {}, mongoose.Document<unknown, {}, {
@@ -61,15 +61,16 @@ declare const UserToken: mongoose.Model<{
     updatedAt: NativeDate;
 } & {
     scope: unknown[];
+    refresh_token?: unknown;
     localUserId?: unknown;
     provider?: unknown;
     access_token?: unknown;
-    refresh_token?: unknown;
     expires_at?: {
-        toJSON?: {} | null | undefined;
-        [Symbol.toPrimitive]?: {} | null | undefined;
         toString?: {} | null | undefined;
         toLocaleString?: {} | null | undefined;
+        [Symbol.toPrimitive]?: {} | null | undefined;
+        toJSON?: {} | null | undefined;
+        valueOf?: {} | null | undefined;
         toDateString?: {} | null | undefined;
         toTimeString?: {} | null | undefined;
         toLocaleDateString?: {} | null | undefined;
@@ -110,7 +111,6 @@ declare const UserToken: mongoose.Model<{
         toUTCString?: {} | null | undefined;
         toISOString?: {} | null | undefined;
         getVarDate?: {} | null | undefined;
-        valueOf?: {} | null | undefined;
     } | null | undefined;
     provider_user_id?: unknown;
 }, {}, {
@@ -120,18 +120,18 @@ declare const UserToken: mongoose.Model<{
         transform: (_doc: mongoose.Document<unknown, {}, mongoose.FlatRecord<{
             localUserId: string;
             provider: string;
-            access_token: string;
-            refresh_token: string;
             expires_at: NativeDate;
             scope: string[];
+            refresh_token?: string | null | undefined;
+            access_token?: string | null | undefined;
             provider_user_id?: string | null | undefined;
         }>, {}, mongoose.ResolveSchemaOptions<mongoose.DefaultSchemaOptions>> & mongoose.FlatRecord<{
             localUserId: string;
             provider: string;
-            access_token: string;
-            refresh_token: string;
             expires_at: NativeDate;
             scope: string[];
+            refresh_token?: string | null | undefined;
+            access_token?: string | null | undefined;
             provider_user_id?: string | null | undefined;
         }> & {
             _id: mongoose.Types.ObjectId;
@@ -140,10 +140,10 @@ declare const UserToken: mongoose.Model<{
         }, ret: mongoose.FlatRecord<{
             localUserId: string;
             provider: string;
-            access_token: string;
-            refresh_token: string;
             expires_at: NativeDate;
             scope: string[];
+            refresh_token?: string | null | undefined;
+            access_token?: string | null | undefined;
             provider_user_id?: string | null | undefined;
         }> & {
             _id: mongoose.Types.ObjectId;
@@ -152,10 +152,10 @@ declare const UserToken: mongoose.Model<{
         }) => mongoose.FlatRecord<{
             localUserId: string;
             provider: string;
-            access_token: string;
-            refresh_token: string;
             expires_at: NativeDate;
             scope: string[];
+            refresh_token?: string | null | undefined;
+            access_token?: string | null | undefined;
             provider_user_id?: string | null | undefined;
         }> & {
             _id: mongoose.Types.ObjectId;
@@ -168,15 +168,16 @@ declare const UserToken: mongoose.Model<{
     updatedAt: NativeDate;
 } & {
     scope: unknown[];
+    refresh_token?: unknown;
     localUserId?: unknown;
     provider?: unknown;
     access_token?: unknown;
-    refresh_token?: unknown;
     expires_at?: {
-        toJSON?: {} | null | undefined;
-        [Symbol.toPrimitive]?: {} | null | undefined;
         toString?: {} | null | undefined;
         toLocaleString?: {} | null | undefined;
+        [Symbol.toPrimitive]?: {} | null | undefined;
+        toJSON?: {} | null | undefined;
+        valueOf?: {} | null | undefined;
         toDateString?: {} | null | undefined;
         toTimeString?: {} | null | undefined;
         toLocaleDateString?: {} | null | undefined;
@@ -217,7 +218,6 @@ declare const UserToken: mongoose.Model<{
         toUTCString?: {} | null | undefined;
         toISOString?: {} | null | undefined;
         getVarDate?: {} | null | undefined;
-        valueOf?: {} | null | undefined;
     } | null | undefined;
     provider_user_id?: unknown;
 } & {
@@ -229,18 +229,18 @@ declare const UserToken: mongoose.Model<{
         transform: (_doc: mongoose.Document<unknown, {}, mongoose.FlatRecord<{
             localUserId: string;
             provider: string;
-            access_token: string;
-            refresh_token: string;
             expires_at: NativeDate;
             scope: string[];
+            refresh_token?: string | null | undefined;
+            access_token?: string | null | undefined;
             provider_user_id?: string | null | undefined;
         }>, {}, mongoose.ResolveSchemaOptions<mongoose.DefaultSchemaOptions>> & mongoose.FlatRecord<{
             localUserId: string;
             provider: string;
-            access_token: string;
-            refresh_token: string;
             expires_at: NativeDate;
             scope: string[];
+            refresh_token?: string | null | undefined;
+            access_token?: string | null | undefined;
             provider_user_id?: string | null | undefined;
         }> & {
             _id: mongoose.Types.ObjectId;
@@ -249,10 +249,10 @@ declare const UserToken: mongoose.Model<{
         }, ret: mongoose.FlatRecord<{
             localUserId: string;
             provider: string;
-            access_token: string;
-            refresh_token: string;
             expires_at: NativeDate;
             scope: string[];
+            refresh_token?: string | null | undefined;
+            access_token?: string | null | undefined;
             provider_user_id?: string | null | undefined;
         }> & {
             _id: mongoose.Types.ObjectId;
@@ -261,10 +261,10 @@ declare const UserToken: mongoose.Model<{
         }) => mongoose.FlatRecord<{
             localUserId: string;
             provider: string;
-            access_token: string;
-            refresh_token: string;
             expires_at: NativeDate;
             scope: string[];
+            refresh_token?: string | null | undefined;
+            access_token?: string | null | undefined;
             provider_user_id?: string | null | undefined;
         }> & {
             _id: mongoose.Types.ObjectId;
@@ -275,31 +275,31 @@ declare const UserToken: mongoose.Model<{
 }, {
     localUserId: string;
     provider: string;
-    access_token: string;
-    refresh_token: string;
     expires_at: NativeDate;
     scope: string[];
+    refresh_token?: string | null | undefined;
+    access_token?: string | null | undefined;
     provider_user_id?: string | null | undefined;
 }, mongoose.Document<unknown, {}, mongoose.FlatRecord<{
     localUserId: string;
     provider: string;
-    access_token: string;
-    refresh_token: string;
     expires_at: NativeDate;
     scope: string[];
+    refresh_token?: string | null | undefined;
+    access_token?: string | null | undefined;
     provider_user_id?: string | null | undefined;
 }>, {}, mongoose.ResolveSchemaOptions<mongoose.DefaultSchemaOptions>> & mongoose.FlatRecord<{
     localUserId: string;
     provider: string;
-    access_token: string;
-    refresh_token: string;
     expires_at: NativeDate;
     scope: string[];
+    refresh_token?: string | null | undefined;
+    access_token?: string | null | undefined;
     provider_user_id?: string | null | undefined;
 }> & {
     _id: mongoose.Types.ObjectId;
 } & {
     __v: number;
 }>>;
-import mongoose from "mongoose";
+export default UserToken;
 //# sourceMappingURL=UserToken.d.ts.map
