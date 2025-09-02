@@ -31,6 +31,36 @@ export const playerController = {
     }
   },
 
+  async syncPlayers(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.userId;
+      const { leagueKey, limit = 100 } = req.body as { leagueKey?: string; limit?: number };
+
+      if (!leagueKey || typeof leagueKey !== 'string') {
+        throw new AppError('leagueKey is required in request body', 400);
+      }
+      // Validate Yahoo league key format to avoid passing DB ids by mistake
+      const isYahooKey = /^(\d+\.l\.\d+|nfl\.l\.\d+)$/i.test(leagueKey);
+      if (!isYahooKey) {
+        throw new AppError(`Invalid leagueKey format. Expected Yahoo league key like "461.l.123456" (or "nfl.l.123456"), got "${leagueKey}"`, 400);
+      }
+      if (!userId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      const players = await playerService.fetchAllPlayersFromYahoo(userId, leagueKey, Number(limit ?? 100));
+
+      res.json({
+        success: true,
+        leagueKey,
+        count: players.length,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async getPlayerById(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;

@@ -36,28 +36,6 @@ export class PlayerService {
     }
   }
 
-  private async updatePlayerDataInBackground(
-    userId: string,
-    leagueKey: string
-  ): Promise<void> {
-    try {
-      console.log("🔄 Starting background player data update...");
-
-      // Fetch players from Yahoo API (first 100 players)
-      const yahooPlayers = await yahooApiService.getPlayers(userId, leagueKey, {
-        count: 100,
-      });
-
-      // TODO: Store/update players in database
-      console.log(`✅ Updated ${yahooPlayers.length} players in background`);
-
-      this.lastUpdateTime = Date.now();
-    } catch (error) {
-      console.error("❌ Background player update failed:", error);
-      // Don't throw - this is background work
-    }
-  }
-
   private transformYahooPlayers(yahooData: any, limit: number): any[] {
     try {
       logger.log("🔄 Transforming Yahoo player data...");
@@ -269,26 +247,6 @@ export class PlayerService {
     if (position === 'K') return 'K';
     if (position === 'DEF') return 'DEF';
     return 'O'; // Offense
-  }
-
-  private getMockPlayers(limit: number): any[] {
-    // Mock data for testing - replace with actual DB query
-    const positions = ["QB", "RB", "WR", "TE", "K", "DEF"];
-    const players = [];
-
-    for (let i = 1; i <= limit; i++) {
-      const position = positions[i % positions.length];
-      players.push({
-        id: `player_${i}`,
-        name: `Player ${i}`,
-        position: position,
-        team: `Team ${(i % 32) + 1}`,
-        lastUpdated: new Date().toISOString(),
-        // Add more fields as we discover Yahoo's structure
-      });
-    }
-
-    return players;
   }
 
   async fetchAllPlayersFromYahoo(userId: string, leagueKey: string, limit: number = 100): Promise<any[]> {

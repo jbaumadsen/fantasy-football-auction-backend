@@ -40,8 +40,10 @@ export class YahooApiService {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
+      
       return data;
     } catch (e: any) {
+      console.log("error in yahooApiService line 46", e);
       wrapYahooError(e);
     }
   }
@@ -50,7 +52,7 @@ export class YahooApiService {
 
   /** Lists games for the logged-in Yahoo user (NFL, MLB, etc.) */
   getUserGames(userId: string) {
-    return this.get(userId, "/users;use_login=1/games");
+    return this.get(userId, "/users;use_login=1/games;game_code=nfl");
   }
 
   /** League settings (includes auction budget, scoring, roster sizes, etc.) */
@@ -205,6 +207,12 @@ export class YahooApiService {
     }
 
     return testResults;
+  }
+
+  /** Get all leagues for a user */
+  getUserLeagues(userId: string) {
+    // Get actual leagues for the 2025 NFL season (game_key 461)
+    return this.get(userId, "/users;use_login=1/games;game_keys=461/leagues");
   }
 }
 

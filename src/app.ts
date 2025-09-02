@@ -10,6 +10,7 @@ import authRoutes from "./routes/auth.routes.js";
 import yahooApiRoutes from "./routes/yahooApi.routes.js";
 import draftRoutes from "./routes/draft.routes.js";
 import playerRoutes from "./routes/player.routes.js";
+import leaguesRoutes from "./routes/leagues.routes.js";
 
 const {
   MONGODB_URI,
@@ -36,6 +37,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/draft", draftRoutes);
 app.use("/api/yahoo", yahooApiRoutes);
 app.use("/api/players", playerRoutes);
+app.use("/api/leagues", leaguesRoutes);
 
 // Error handling
 app.use(errorHandler);
