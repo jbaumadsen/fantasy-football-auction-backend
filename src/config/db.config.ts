@@ -25,11 +25,7 @@ const connectDB = async (uri?: string): Promise<void> => {
       process.exit(1);
     });
 
-    process.on('SIGINT', async () => {
-      await mongoose.connection.close();
-      console.log('MongoDB connection closed due to application termination');
-      process.exit(0);
-    });
+    // SIGINT handling is now managed in server.ts for graceful shutdown
   } catch (error) {
     console.error('MongoDB connection error:', error);
     process.exit(1);

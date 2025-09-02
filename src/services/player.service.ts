@@ -2,10 +2,10 @@ import { yahooApiService } from "./yahooApi.service.js";
 import { AppError } from "../types/error.types.js";
 import { logger } from "../utils/logger.utils.js";
 import Player, { IPlayer } from "../models/player.model.js";
+import PlayerAnalysis from "../models/playerAnalysis.model.js";
+import PlayerValue from "../models/playerValue.model.js";
 
 export class PlayerService {
-  private lastUpdateTime: number = 0;
-  private readonly UPDATE_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
   async getPlayers(
     userId: string,
@@ -77,6 +77,114 @@ export class PlayerService {
       logger.error("❌ Error transforming Yahoo data:", error);
       throw new AppError("Failed to transform Yahoo player data", 500);
     }
+  }
+
+  /**
+   * Return players enriched with league-specific draft analysis (average draft value).
+   * - Ensures players exist (DB or Yahoo fetch)
+   * - Joins on PlayerAnalysis by fantasyLeagueId + yahooPlayerKey
+   */
+  async getPlayersWithAnalyses(
+    userId: string,
+    leagueKey: string,
+    limit: number = 100
+  ): Promise<any[]> {
+    console.log('🔍 getPlayersWithAnalyses service called:', { userId, leagueKey, limit });
+    
+    // Normalize league key format (461.l.476219 -> nfl.l.476219)
+    const normalizedLeagueKey = this.normalizeLeagueKey(leagueKey);
+    console.log('🔄 Normalized league key:', normalizedLeagueKey);
+    
+    // Get base players directly from database (already synced)
+    console.log('📊 Getting base players from database...');
+    const basePlayers = await Player.find({})
+      .limit(limit)
+      .lean();
+    console.log('📊 Base players count:', basePlayers?.length || 0);
+
+    if (!basePlayers || basePlayers.length === 0) {
+      console.log('❌ No base players found, returning empty array');
+      return [];
+    }
+
+    // Collect keys and fetch analyses for this league
+    const keys = basePlayers
+      .map((p: any) => p.yahooPlayerKey || p.yahooPlayerId || p.yahooPlayerKey)
+      .filter(Boolean);
+    console.log('🔑 Player keys to lookup:', keys.length);
+
+    console.log('📊 Fetching analyses for normalized league:', normalizedLeagueKey);
+    const analyses = await PlayerAnalysis.find({
+      fantasyLeagueId: normalizedLeagueKey,
+      yahooPlayerKey: { $in: keys },
+    }).lean();
+    console.log('📊 Analyses found:', analyses.length);
+
+    const keyToAnalysis: Record<string, any> = {};
+    for (const a of analyses) {
+      keyToAnalysis[a.yahooPlayerKey] = a;
+    }
+    
+    console.log('🔑 Analysis keys available:', Object.keys(keyToAnalysis).slice(0, 5));
+    console.log('🔑 Sample player keys to lookup:', keys.slice(0, 5));
+
+    // Get user's custom values for this league
+    console.log('💰 Fetching user custom values for league:', normalizedLeagueKey);
+    const playerValues = await PlayerValue.find({
+      userId,
+      leagueKey: normalizedLeagueKey
+    }).lean();
+    
+    const valueMap: Record<string, number | null> = {};
+    playerValues.forEach(pv => {
+      valueMap[pv.yahooPlayerKey] = pv.myValue;
+    });
+    console.log('💰 User custom values found:', playerValues.length);
+
+    // Enrich players with average draft value (prefer averageCost; fallback preseasonAverageCost)
+    let debugCount = 0;
+    const enriched = basePlayers.map((p: any) => {
+      const key = p.yahooPlayerKey || p.yahooPlayerId || p.yahooPlayerKey;
+      const a = keyToAnalysis[key];
+      const avgCostStr = a?.averageCost && a.averageCost !== "-" ? a.averageCost : a?.preseasonAverageCost;
+      const averageDraftValue = avgCostStr && avgCostStr !== "-" ? Number(avgCostStr) : null;
+      
+      // Debug logging for first few players
+      if (debugCount < 3) {
+        console.log(`🔍 Player ${p.name} (${key}):`, {
+          hasAnalysis: !!a,
+          averageCost: a?.averageCost,
+          preseasonAverageCost: a?.preseasonAverageCost,
+          avgCostStr,
+          averageDraftValue
+        });
+        debugCount++;
+      }
+      
+      return {
+        ...p,
+        // Map fields to expected frontend format
+        position: p.displayPosition || p.primaryPosition,
+        team: p.editorialTeamAbbr,
+        averageDraftValue,
+        myValue: valueMap[key] || null,
+      };
+    });
+
+    console.log('✅ Returning enriched players:', enriched.length);
+    return enriched;
+  }
+
+  /**
+   * Normalize league key format from Yahoo format to standard format
+   * Converts "461.l.476219" to "nfl.l.476219"
+   */
+  private normalizeLeagueKey(leagueKey: string): string {
+    const match = leagueKey.match(/^(\d+)\.l\.(\d+)$/i);
+    if (match) {
+      return `nfl.l.${match[2]}`;
+    }
+    return leagueKey; // Return as-is if already normalized or different format
   }
 
   private extractPlayerData(playersArray: any[], limit: number): any[] {
@@ -297,7 +405,6 @@ export class PlayerService {
       }
       
       logger.log(`🎉 Successfully synced ${allPlayers.length} players from Yahoo`);
-      this.lastUpdateTime = Date.now();
       
       // Return the requested limit, but we've stored ALL players in the database
       return allPlayers.slice(0, limit);

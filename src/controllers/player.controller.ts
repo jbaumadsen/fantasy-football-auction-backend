@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../types/authenticatedRequest.types.js';
 import { playerService } from '../services/player.service.js';
 import { AppError } from '../types/error.types.js';
+import PlayerValue from '../models/playerValue.model.js';
 
 export const playerController = {
   async getPlayers(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -27,6 +28,37 @@ export const playerController = {
         message: 'Players retrieved successfully'
       });
     } catch (error) {
+      next(error);
+    }
+  },
+
+  async getPlayersWithAnalyses(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      console.log('🔍 getPlayersWithAnalyses called');
+      const { leagueKey, limit = 100 } = req.query as { leagueKey?: string; limit?: string | number };
+      const userId = req.userId;
+
+      console.log('📊 Request params:', { leagueKey, limit, userId });
+      console.log('📊 Request URL:', req.url);
+      console.log('📊 Request method:', req.method);
+
+      if (!leagueKey || typeof leagueKey !== 'string') {
+        console.log('❌ Missing leagueKey');
+        throw new AppError('leagueKey is required', 400);
+      }
+      if (!userId) {
+        console.log('❌ Missing userId');
+        throw new AppError('User not authenticated', 401);
+      }
+
+      console.log('🚀 Calling playerService.getPlayersWithAnalyses...');
+      const players = await playerService.getPlayersWithAnalyses(userId, leagueKey, Number(limit ?? 100));
+      console.log('✅ Got players:', players.length);
+      console.log('📊 Sample player data:', players.slice(0, 2));
+      
+      res.json({ success: true, data: players, count: players.length });
+    } catch (error) {
+      console.error('❌ Error in getPlayersWithAnalyses:', error);
       next(error);
     }
   },
@@ -112,6 +144,86 @@ export const playerController = {
         success: true,
         data: testResults,
         message: 'Yahoo endpoint testing completed'
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // My$ (User's custom player values) endpoints
+  async updatePlayerValue(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      console.log('🎯 updatePlayerValue endpoint called');
+      console.log('🎯 Request body:', req.body);
+      console.log('🎯 Request method:', req.method);
+      console.log('🎯 Request URL:', req.url);
+      
+      const userId = req.userId;
+      const { leagueKey, yahooPlayerKey, playerName, myValue } = req.body;
+
+      if (!userId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      if (!leagueKey || !yahooPlayerKey || !playerName) {
+        throw new AppError('leagueKey, yahooPlayerKey, and playerName are required', 400);
+      }
+
+      if (myValue !== null && (typeof myValue !== 'number' || myValue < 0)) {
+        throw new AppError('myValue must be null or a non-negative number', 400);
+      }
+
+      // Normalize league key
+      const normalizedLeagueKey = leagueKey.replace(/^\d+\.l\./, 'nfl.l.');
+
+      // Upsert the player value
+      const playerValue = await PlayerValue.findOneAndUpdate(
+        { userId, leagueKey: normalizedLeagueKey, yahooPlayerKey },
+        { playerName, myValue },
+        { upsert: true, new: true }
+      );
+
+      res.json({ 
+        success: true, 
+        data: playerValue,
+        message: 'Player value updated successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getPlayerValues(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.userId;
+      const { leagueKey } = req.query;
+
+      if (!userId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      if (!leagueKey || typeof leagueKey !== 'string') {
+        throw new AppError('leagueKey is required', 400);
+      }
+
+      // Normalize league key
+      const normalizedLeagueKey = leagueKey.replace(/^\d+\.l\./, 'nfl.l.');
+
+      const playerValues = await PlayerValue.find({
+        userId,
+        leagueKey: normalizedLeagueKey
+      }).lean();
+
+      // Convert to a map for easy lookup
+      const valueMap: Record<string, number | null> = {};
+      playerValues.forEach(pv => {
+        valueMap[pv.yahooPlayerKey] = pv.myValue;
+      });
+
+      res.json({ 
+        success: true, 
+        data: valueMap,
+        count: playerValues.length
       });
     } catch (error) {
       next(error);

@@ -65,20 +65,20 @@ router.get("/snapshot", appAuthMiddleware(["user"]), async (req: AuthenticatedRe
     const budget = extractBudget(settingsJson);
     
     // Log summary for debugging
-    console.log(`📊 Draft snapshot for ${leagueKey}:`, {
-      teamsFound: teams.length,
-      picksFound: picks.length,
-      budgetCap: budget
-    });
+    // console.log(`📊 Draft snapshot for ${leagueKey}:`, {
+    //   teamsFound: teams.length,
+    //   picksFound: picks.length,
+    //   budgetCap: budget
+    // });
 
     const budgets = computeBudgets(teams, picks, budget);
 
-    console.log(`📊 Draft snapshot for ${leagueKey}:`, {
-      teamsFound: teams.length,
-      picksFound: picks.length,
-      budgetCap: budget,
-      teamKeys: teams.map(t => t.team_key)
-    });
+    // console.log(`📊 Draft snapshot for ${leagueKey}:`, {
+    //   teamsFound: teams.length,
+    //   picksFound: picks.length,
+    //   budgetCap: budget,
+    //   teamKeys: teams.map(t => t.team_key)
+    // });
 
     const payload = {
       leagueKey,
