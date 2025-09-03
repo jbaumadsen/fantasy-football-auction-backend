@@ -175,6 +175,56 @@ export class PlayerService {
     return enriched;
   }
 
+  async copyMyValuesFromLeagueToAnotherService(
+    userId: string,
+    sourceLeagueKey: string,
+    targetLeagueKey: string
+  ): Promise<{ copied: number }> {
+    try {
+      console.log(`🔄 Copying My$ values from ${sourceLeagueKey} to ${targetLeagueKey} for user ${userId}`);
+      
+      // Normalize league keys
+      const normalizedSourceKey = sourceLeagueKey.replace(/^\d+\.l\./, 'nfl.l.');
+      const normalizedTargetKey = targetLeagueKey.replace(/^\d+\.l\./, 'nfl.l.');
+      
+      if (normalizedSourceKey === normalizedTargetKey) {
+        throw new Error('Source and target league keys cannot be the same');
+      }
+      
+      // Get all player values from source league
+      const sourcePlayerValues = await PlayerValue.find({
+        userId,
+        leagueKey: normalizedSourceKey
+      }).lean();
+      
+      console.log(`📊 Found ${sourcePlayerValues.length} player values in source league`);
+      
+      // Copy each player value to target league
+      const copyPromises = sourcePlayerValues.map(sourceValue => 
+        PlayerValue.findOneAndUpdate(
+          { 
+            userId, 
+            leagueKey: normalizedTargetKey, 
+            yahooPlayerKey: sourceValue.yahooPlayerKey 
+          },
+          { 
+            playerName: sourceValue.playerName,
+            myValue: sourceValue.myValue
+          },
+          { upsert: true, new: true }
+        )
+      );
+      
+      const results = await Promise.all(copyPromises);
+      console.log(`✅ Successfully copied ${results.length} player values`);
+      
+      return { copied: results.length };
+    } catch (error) {
+      console.error("❌ Error copying player values from league to another:", error);
+      throw error;
+    }
+  }
+
   /**
    * Normalize league key format from Yahoo format to standard format
    * Converts "461.l.476219" to "nfl.l.476219"
@@ -413,6 +463,8 @@ export class PlayerService {
       throw error;
     }
   }
+
+
 }
 
 export const playerService = new PlayerService();

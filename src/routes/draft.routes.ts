@@ -118,6 +118,8 @@ router.post("/bulk-fetch-player-analyses", appAuthMiddleware(["user"]), async (r
     console.log(`🔄 Starting bulk fetch of player analyses for league: ${leagueKey}`);
     
     const result = await draftService.getAndUpdatePlayerDraftAnalysisFromYahoo(userId, leagueKey);
+
+    console.log(`✅ Bulk fetch of player analyses for league: ${leagueKey} completed`);
     
     res.json({
       success: true,

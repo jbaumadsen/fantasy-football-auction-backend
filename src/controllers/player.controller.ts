@@ -150,6 +150,35 @@ export const playerController = {
     }
   },
 
+  async copyMyValuesFromLeagueToAnotherController(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      console.log('🎯 copyMyValuesFromLeagueToAnotherController endpoint called');
+      console.log('🎯 Request body:', req.body);
+      
+      const userId = req.userId;
+      const { sourceLeagueKey, targetLeagueKey } = req.body;
+      
+      if (!userId) {
+        throw new AppError('User not authenticated', 401);
+      }
+      
+      if (!sourceLeagueKey || !targetLeagueKey) {
+        throw new AppError('sourceLeagueKey and targetLeagueKey are required', 400);
+      }
+      
+      const result = await playerService.copyMyValuesFromLeagueToAnotherService(userId, sourceLeagueKey, targetLeagueKey);
+      
+      res.json({
+        success: true,
+        data: result,
+        message: `Successfully copied ${result.copied} player values from ${sourceLeagueKey} to ${targetLeagueKey}`
+      });
+    } catch (error) {
+      console.error("❌ Error copying player values from league to another:", error);
+      next(error);
+    }
+  },
+
   // My$ (User's custom player values) endpoints
   async updatePlayerValue(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {

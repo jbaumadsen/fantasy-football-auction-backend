@@ -66,8 +66,12 @@ export class YahooApiService {
   }
 
   /** League draft results (includes auction prices when applicable) */
-  getLeagueDraftResults(userId: string, leagueKey: string) {
-    return this.get(userId, `/league/${leagueKey}/draftresults`);
+  async getLeagueDraftResults(userId: string, leagueKey: string) {
+    console.log("Getting league draft results for leagueKey", leagueKey);
+    const result = await this.get(userId, `/league/${leagueKey}/draftresults`);
+    console.log("League draft results retrieved successfully");
+    console.log("result in yahooApiService line 70", result.fantasy_content);
+    return result;
   }
 
   /** Team roster (teamKey looks like "nfl.l.12345.t.7") */

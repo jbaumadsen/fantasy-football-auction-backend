@@ -22,5 +22,6 @@ router.get('/:id', appAuthMiddleware(["user"]), playerController.getPlayerById);
 // My$ (User's custom player values) routes
 router.put('/my-value', appAuthMiddleware(["user"]), playerController.updatePlayerValue);
 router.get('/my-values', appAuthMiddleware(["user"]), playerController.getPlayerValues);
+router.post('/my-values/copy', appAuthMiddleware(["user"]), playerController.copyMyValuesFromLeagueToAnotherController);
 
 export default router;
